@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Buddy",
+    "species": "Dog",
+    "breed": "Golden Retriever",
+    "age": 3,
+    "adopted": true
+  },
+  {
+    "id": 4,
+    "name": "Coco",
+    "species": "Rabbit",
+    "breed": "Holland Lop",
+    "age": 1,
+    "adopted": true
+  },
+  {
+    "id": 5,
+    "name": "Sean",
+    "species": "Dog",
+    "breed": "Hybreed",
+    "age": 30,
+    "adopted": false
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "name": "pet-adoption-system",
+  "version": "1.0.0",
+  "description": "Pet Adoption Management System (Node.js + Express + data.json)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

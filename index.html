@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pet Adoption System</title>
+</head>
+<body>
+  <h1>Pet Adoption System</h1>
+  <p>Browse, add, and remove pets. Adopted pets cannot be deleted.</p>
+
+  <div id="message" role="status" aria-live="polite"></div>
+
+  <br />
+
+  <h2>Add a New Pet</h2>
+  <form id="addForm">
+    <label>Name: <input type="text" id="name" required /></label>
+    <label>Species: <input type="text" id="species" placeholder="Dog, Cat..." required /></label>
+    <label>Breed: <input type="text" id="breed" required /></label>
+    <label>Age (years): <input type="number" id="age" min="0" step="1" required /></label>
+    <button type="submit">Add Pet</button>
+  </form>
+  <p>New pets are automatically marked AVAILABLE.</p>
+
+  <br />
+
+  <h2>Find a Pet by ID</h2>
+  <label>Pet ID: <input type="number" id="searchId" min="1" step="1" /></label>
+  <button id="searchBtn" type="button">Search</button>
+  <button id="clearBtn" type="button">Clear</button>
+  <div id="searchResult"></div>
+
+  <br />
+
+  <h2>All Pets</h2>
+  <table border="0" cellpadding="6">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Species</th>
+        <th>Breed</th>
+        <th>Age</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="petTableBody"></tbody>
+  </table>
+  <p id="emptyState" hidden>No pets found.</p>
+
+  <script>
+    const API = "/api/pets";
+    const messageEl = document.getElementById("message");
+    const tbody = document.getElementById("petTableBody");
+    const emptyState = document.getElementById("emptyState");
+    const searchResult = document.getElementById("searchResult");
+
+    let messageTimer = null;
+
+    function showMessage(text, type) {
+      messageEl.textContent = (type === "error" ? "Error: " : "Success: ") + text;
+      clearTimeout(messageTimer);
+      messageTimer = setTimeout(() => {
+        messageEl.textContent = "";
+      }, 5000);
+    }
+
+    function statusText(pet) {
+      return pet.adopted ? "ADOPTED" : "AVAILABLE";
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement("div");
+      div.textContent = String(value);
+      return div.innerHTML;
+    }
+
+    async function request(url, options) {
+      const res = await fetch(url, options);
+      let body = null;
+      try { body = await res.json(); } catch (_) { /* no JSON body */ }
+      if (!res.ok) {
+        const detail = body && body.details ? " " + body.details.join(" ") : "";
+        throw new Error(((body && body.error) || `Request failed (${res.status})`) + detail);
+      }
+      return body;
+    }
+
+    async function loadPets() {
+      try {
+        const pets = await request(API);
+        tbody.innerHTML = pets.map((pet) => `
+          <tr>
+            <td>${pet.id}</td>
+            <td>${escapeHtml(pet.name)}</td>
+            <td>${escapeHtml(pet.species)}</td>
+            <td>${escapeHtml(pet.breed)}</td>
+            <td>${escapeHtml(pet.age)}</td>
+            <td><strong>${statusText(pet)}</strong></td>
+            <td><button data-id="${pet.id}">Delete</button></td>
+          </tr>
+        `).join("");
+        emptyState.hidden = pets.length !== 0;
+      } catch (err) {
+        showMessage(err.message, "error");
+      }
+    }
+
+    document.getElementById("addForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById("name").value,
+        species: document.getElementById("species").value,
+        breed: document.getElementById("breed").value,
+        age: Number(document.getElementById("age").value),
+      };
+      try {
+        const pet = await request(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage(`Added ${pet.name} (ID ${pet.id}) as AVAILABLE.`, "success");
+        e.target.reset();
+        loadPets();
+      } catch (err) {
+        showMessage(err.message, "error");
+      }
+    });
+
+    tbody.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-id]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (!confirm(`Delete pet with ID ${id}?`)) return;
+      try {
+        const result = await request(`${API}/${id}`, { method: "DELETE" });
+        showMessage(result.message, "success");
+        searchResult.innerHTML = "";
+        loadPets();
+      } catch (err) {
+        showMessage(err.message, "error");
+      }
+    });
+
+    async function searchById() {
+      const id = document.getElementById("searchId").value.trim();
+      if (!id) {
+        showMessage("Enter a pet ID to search.", "error");
+        return;
+      }
+      try {
+        const pet = await request(`${API}/${encodeURIComponent(id)}`);
+        searchResult.innerHTML = `
+          <p>
+            <strong>#${pet.id} - ${escapeHtml(pet.name)}</strong> (${statusText(pet)})<br />
+            ${escapeHtml(pet.species)} | ${escapeHtml(pet.breed)} | ${escapeHtml(pet.age)} year(s) old
+          </p>`;
+      } catch (err) {
+        searchResult.innerHTML = "";
+        showMessage(err.message, "error");
+      }
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", searchById);
+    document.getElementById("searchId").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchById();
+    });
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      document.getElementById("searchId").value = "";
+      searchResult.innerHTML = "";
+    });
+
+    loadPets();
+  </script>
+</body>
+</html>
